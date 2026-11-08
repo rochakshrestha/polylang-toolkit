@@ -107,7 +107,8 @@ class Adapter {
 			return null; // Only the admin context handles post-new.php.
 		}
 
-		$data = $pll->links->get_data_from_new_post_translation_request();
+		// The 3.7 stubs still declare a parameter that Polylang 3.8 removed; 3.9 takes none (docs/polylang-api.md).
+		$data = $pll->links->get_data_from_new_post_translation_request(); // @phpstan-ignore arguments.count
 		if ( empty( $data ) ) {
 			return null;
 		}

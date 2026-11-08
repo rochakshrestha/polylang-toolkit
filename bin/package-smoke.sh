@@ -41,7 +41,8 @@ if grep -Eq ',(ERROR|WARNING),' "$ROOT/build/plugin-check.csv"; then
 fi
 run wp option update tkpll_settings '{"modules":{}}' --format=json
 run wp plugin deactivate toolkit-for-polylang
-run wp plugin uninstall toolkit-for-polylang
+# --skip-delete: the plugin folder is a mounted volume here; we test the data cleanup, not file deletion.
+run wp plugin uninstall toolkit-for-polylang --skip-delete
 
 left=$(run wp db query "SELECT COUNT(*) FROM wp_options WHERE option_name LIKE 'tkpll\\_%'" --skip-column-names | tr -d '[:space:]')
 if [[ "$left" != "0" ]]; then
