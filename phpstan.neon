@@ -1,0 +1,15 @@
+# Protected file: changes need the spec-change label.
+parameters:
+	level: 8
+	phpVersion: 80100
+	paths:
+		- toolkit-for-polylang.php
+		- uninstall.php
+		- src
+	bootstrapFiles:
+		- tests/stubs/constants.php
+	scanFiles:
+		- vendor/wpsyntex/polylang-stubs/polylang-stubs.php
+	scanDirectories:
+		- tests/stubs
+	treatPhpDocTypesAsCertain: false

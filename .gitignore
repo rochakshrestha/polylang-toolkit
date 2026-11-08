@@ -1,0 +1,10 @@
+/vendor/
+/node_modules/
+/build/
+/dist/
+/test-results/
+/playwright-report/
+/.wp-env.override.json
+.phpunit.result.cache
+.DS_Store
+codedb.snapshot

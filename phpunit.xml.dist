@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!-- Protected file: changes need the spec-change label. -->
+<phpunit
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+	bootstrap="tests/phpunit/bootstrap.php"
+	colors="true"
+	beStrictAboutOutputDuringTests="true"
+	failOnRisky="true"
+	failOnWarning="true"
+	failOnSkipped="true"
+	failOnIncomplete="true"
+	convertDeprecationsToExceptions="true"
+>
+	<testsuites>
+		<testsuite name="unit">
+			<directory suffix="Test.php">tests/phpunit/Unit</directory>
+		</testsuite>
+		<testsuite name="integration">
+			<directory suffix="Test.php">tests/phpunit/Integration</directory>
+		</testsuite>
+	</testsuites>
+	<!-- Tests written ahead of their code carry @group pending (see AGENTS.md) and do not run. -->
+	<groups>
+		<exclude>
+			<group>pending</group>
+		</exclude>
+	</groups>
+	<coverage processUncoveredFiles="true">
+		<include>
+			<directory suffix=".php">src</directory>
+		</include>
+		<exclude>
+			<file>src/autoload.php</file>
+		</exclude>
+		<report>
+			<clover outputFile="build/coverage/clover.xml"/>
+			<text outputFile="php://stdout" showOnlySummary="true"/>
+		</report>
+	</coverage>
+</phpunit>

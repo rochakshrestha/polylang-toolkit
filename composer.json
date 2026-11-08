@@ -1,0 +1,41 @@
+{
+	"name": "rochakshrestha/polylang-toolkit",
+	"description": "Essential extras for free Polylang. Not affiliated with WP SYNTEX / Polylang.",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=8.1"
+	},
+	"require-dev": {
+		"dealerdirect/phpcodesniffer-composer-installer": "^1.2",
+		"phpcompatibility/phpcompatibility-wp": "^2.1",
+		"phpstan/extension-installer": "^1.4",
+		"phpstan/phpstan": "^2.1",
+		"phpunit/phpunit": "^9.6",
+		"szepeviktor/phpstan-wordpress": "^2.0",
+		"wp-coding-standards/wpcs": "^3.1",
+		"wpsyntex/polylang-stubs": "^3.7",
+		"yoast/phpunit-polyfills": "^4.0"
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"ToolkitForPolylang\\Tests\\": "tests/phpunit/"
+		}
+	},
+	"config": {
+		"platform": {
+			"php": "8.1.0"
+		},
+		"sort-packages": true,
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true,
+			"phpstan/extension-installer": true
+		}
+	},
+	"scripts": {
+		"lint": "phpcs",
+		"lint:fix": "phpcbf",
+		"analyse": "phpstan analyse --memory-limit=1G --no-progress",
+		"test:unit": "phpunit --testsuite unit"
+	}
+}

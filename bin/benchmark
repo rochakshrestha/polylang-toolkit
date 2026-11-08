@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Toolkit for Polylang benchmark: the definition of done for every task.
+# Protected file: changes need the spec-change label.
+#
+# Usage:
+#   bin/benchmark            all local gates (needs Docker for wp-env)
+#   bin/benchmark --quick    static gates only (standards, static analysis, spec traceability, packaging)
+#   bin/benchmark --no-e2e   skip Playwright
+#
+# Gates 7 (URL/SEO), 8 (coexistence), 11 (performance) are PHPUnit/Playwright groups that run
+# inside gates 3 and 6 and are also reported separately. Gates 9 (AI add-ons) and 10 (version
+# matrix) run in CI only. A summary is written to build/benchmark-summary.md: paste it in the PR.
+set -uo pipefail
+
+cd "$(dirname "$0")/.."
+QUICK=0
+E2E=1
+for arg in "$@"; do
+	case "$arg" in
+		--quick) QUICK=1 ;;
+		--no-e2e) E2E=0 ;;
+		*) echo "Unknown option: $arg"; exit 2 ;;
+	esac
+done
+
+mkdir -p build
+declare -a ROWS=()
+FAILED=0
+PLUGIN_CWD=wp-content/plugins/toolkit-for-polylang
+
+record() { # number, name, status, note
+	ROWS+=("| $1 | $2 | $3 | $4 |")
+	[[ "$3" == "FAIL" ]] && FAILED=1
+	printf '\n== Gate %s %s: %s %s\n' "$1" "$2" "$3" "$4"
+}
+
+gate() { # number, name, command...
+	local num=$1 name=$2; shift 2
+	printf '\n-- Gate %s: %s\n' "$num" "$name"
+	local log="build/gate-$num.log"
+	if "$@" 2>&1 | tee "$log"; then
+		record "$num" "$name" PASS ""
+	else
+		record "$num" "$name" FAIL "see build/gate-$num.log"
+	fi
+}
+
+# Runs PHP tooling on the host when PHP exists, otherwise inside the wp-env cli container.
+php_tool() {
+	if command -v php >/dev/null 2>&1; then
+		"$@"
+	else
+		npx wp-env run cli --env-cwd="$PLUGIN_CWD" "$@"
+	fi
+}
+
+wp_cli() { npx wp-env run cli --env-cwd="$PLUGIN_CWD" wp "$@"; }
+
+have_env() { npx wp-env run cli wp core version >/dev/null 2>&1; }
+
+if [[ ! -d vendor ]]; then
+	php_tool composer install --no-interaction --no-progress || { echo "composer install failed"; exit 1; }
+fi
+
+gate 1 "Coding standards" php_tool vendor/bin/phpcs
+gate 2 "Static analysis" php_tool vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+gate 5 "Spec traceability" node bin/check-spec-coverage.mjs
+gate 15 "Packaging" bash bin/build-zip.sh
+
+if [[ $QUICK -eq 1 ]]; then
+	for n in 3 4 6 7 8 11 12 13 14; do record "$n" "(skipped: --quick)" SKIP ""; done
+elif ! have_env; then
+	echo "wp-env is not running. Start it with: npm run env:start:coverage"
+	for n in 3 4 6 7 8 11 12 13 14; do record "$n" "(wp-env not running)" FAIL "start wp-env"; done
+else
+	gate 3 "Integration tests (+coverage)" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" env XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-clover build/coverage/clover.xml
+	gate 4 "Coverage >= 80%" node bin/check-coverage.mjs build/coverage/clover.xml
+	gate 7 "URL/SEO output" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" vendor/bin/phpunit --group seo
+	gate 8 "Coexistence" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" vendor/bin/phpunit --group coexistence
+	gate 11 "Performance" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" vendor/bin/phpunit --group performance
+	gate 12 "Security" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" vendor/bin/phpunit --group security
+	gate 13 "i18n (make-pot)" bash -c "npx wp-env run cli --env-cwd=$PLUGIN_CWD wp i18n make-pot . build/toolkit-for-polylang.pot --exclude=vendor,node_modules,tests,build,dist 2>&1 | tee build/make-pot.log; ! grep -qi 'warning' build/make-pot.log"
+	gate 14 "Plugin Check + package smoke (built zip)" bash bin/package-smoke.sh
+	if [[ $E2E -eq 1 ]]; then
+		gate 6 "End-to-end (+axe)" npx playwright test
+	else
+		record 6 "End-to-end" SKIP "--no-e2e"
+	fi
+fi
+
+record 9 "AI add-on compatibility" SKIP "CI only (job ai-addons)"
+record 10 "Compatibility matrix" SKIP "CI only (job phpunit matrix)"
+
+{
+	echo "### Benchmark summary ($(git rev-parse --short HEAD 2>/dev/null || echo 'no commit'))"
+	echo
+	echo "| # | Gate | Result | Note |"
+	echo "|---|---|---|---|"
+	printf '%s\n' "${ROWS[@]}" | sort -t'|' -k2 -n
+} >build/benchmark-summary.md
+
+echo
+cat build/benchmark-summary.md
+if [[ $FAILED -eq 1 ]]; then
+	echo
+	echo "BENCHMARK FAILED"
+	exit 1
+fi
+echo
+echo "BENCHMARK PASSED"

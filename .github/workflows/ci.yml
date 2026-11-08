@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  protected-paths:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Protected paths vs product code
+        env:
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: node bin/check-protected-paths.mjs "origin/${{ github.base_ref }}"
+
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: vendor/bin/phpcs
+      - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+      - run: node bin/check-spec-coverage.mjs
+      - run: bash bin/build-zip.sh
+
+  phpunit:
+    name: phpunit (PHP ${{ matrix.php }}, WP ${{ matrix.wp }}, Polylang ${{ matrix.polylang }})
+    runs-on: ubuntu-latest
+    # WordPress trunk on PHP 8.4 can break on upstream deprecations; it reports but does not block.
+    continue-on-error: ${{ matrix.experimental == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { php: '8.1', wp: '6.8', polylang: '3.9.0', coverage: false }
+          - { php: '8.3', wp: 'latest', polylang: '3.9.1', coverage: true }
+          - { php: '8.3', wp: 'latest', polylang: 'latest', coverage: false }
+          - { php: '8.4', wp: 'trunk', polylang: 'latest', coverage: false, experimental: true }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: npm ci
+      - name: wp-env override for this matrix leg
+        run: |
+          node -e '
+            const m = process.env;
+            const core = m.WP_VERSION === "latest" ? null : m.WP_VERSION === "trunk" ? "WordPress/WordPress#master" : "WordPress/WordPress#" + m.WP_VERSION;
+            const pl = m.PL_VERSION === "latest" ? "https://downloads.wordpress.org/plugin/polylang.latest-stable.zip" : "https://downloads.wordpress.org/plugin/polylang." + m.PL_VERSION + ".zip";
+            require("fs").writeFileSync(".wp-env.override.json", JSON.stringify({ core, phpVersion: m.PHP_VERSION_LEG, plugins: [ pl ] }));
+          '
+        env:
+          WP_VERSION: ${{ matrix.wp }}
+          PL_VERSION: ${{ matrix.polylang }}
+          PHP_VERSION_LEG: ${{ matrix.php }}
+      - name: Start wp-env
+        run: npx wp-env start ${{ matrix.coverage && '--xdebug=coverage' || '' }}
+      - name: PHPUnit
+        run: |
+          if [ "${{ matrix.coverage }}" = "true" ]; then
+            npx wp-env run tests-cli --env-cwd=wp-content/plugins/toolkit-for-polylang env XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-clover build/coverage/clover.xml
+            node bin/check-coverage.mjs build/coverage/clover.xml
+          else
+            npx wp-env run tests-cli --env-cwd=wp-content/plugins/toolkit-for-polylang vendor/bin/phpunit --no-coverage
+          fi
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx wp-env start
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+
+  # Benchmark gate 9. Smoke-installs each AI add-on next to the toolkit; deeper flows arrive with COMPAT (M5).
+  ai-addons:
+    name: ai-addons (${{ matrix.addon }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        addon: [ automatic-translations-for-polylang, epicwp-ai-translation-for-polylang, polytranslate-ai ]  # AutoPoly, EPICWP AI, PolyTranslate AI (wp.org slugs verified)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci
+      - run: npx wp-env start
+      - name: Install and activate the add-on beside the toolkit
+        run: |
+          npx wp-env run cli wp plugin install "${{ matrix.addon }}" --activate
+          npx wp-env run cli wp plugin is-active toolkit-for-polylang
+          npx wp-env run cli wp eval 'echo "ok";'
+      - name: No PHP notices from the toolkit in the debug log (other plugins' notices are shown, not failed)
+        run: |
+          npx wp-env run cli bash -c 'touch /var/www/html/wp-content/debug.log; cat /var/www/html/wp-content/debug.log; ! grep -q toolkit-for-polylang /var/www/html/wp-content/debug.log'
+
+  # Benchmark gate 13 (i18n). Gate 14 (Plugin Check) runs on the built zip in the package job.
+  wp-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci
+      - run: npx wp-env start
+      - name: i18n (make-pot without warnings)
+        run: |
+          mkdir -p build
+          npx wp-env run cli --env-cwd=wp-content/plugins/toolkit-for-polylang wp i18n make-pot . build/toolkit-for-polylang.pot --exclude=vendor,node_modules,tests,build,dist 2>&1 | tee build/make-pot.log
+          ! grep -qi 'warning' build/make-pot.log
+
+  # Benchmark gates 14 (Plugin Check on the built zip) and 15 (install, uninstall).
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci
+      - run: bash bin/build-zip.sh
+      - run: bash bin/package-smoke.sh

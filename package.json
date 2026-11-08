@@ -1,0 +1,26 @@
+{
+	"name": "toolkit-for-polylang",
+	"private": true,
+	"description": "Essential extras for free Polylang. Not affiliated with WP SYNTEX / Polylang.",
+	"license": "GPL-2.0-or-later",
+	"engines": {
+		"node": ">=20"
+	},
+	"scripts": {
+		"env:start": "wp-env start",
+		"env:stop": "wp-env stop",
+		"env:destroy": "wp-env destroy",
+		"test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/toolkit-for-polylang vendor/bin/phpunit",
+		"test:php:coverage": "wp-env run tests-cli --env-cwd=wp-content/plugins/toolkit-for-polylang env XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-clover build/coverage/clover.xml",
+		"test:e2e": "playwright test",
+		"check:specs": "node bin/check-spec-coverage.mjs",
+		"benchmark": "bash bin/benchmark",
+		"env:start:coverage": "wp-env start --xdebug=coverage"
+	},
+	"devDependencies": {
+		"@axe-core/playwright": "^4.14.0",
+		"@playwright/test": "^1.65.0",
+		"@wordpress/e2e-test-utils-playwright": "^3.2.0",
+		"@wordpress/env": "^12.1.0"
+	}
+}

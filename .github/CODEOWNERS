@@ -1,0 +1,12 @@
+# Owner of protected paths. Change if the repo moves to an organisation.
+# Protected paths (see AGENTS.md): only the owner approves changes here.
+/docs/specs/            @rochakshrestha
+/docs/polylang-api.md   @rochakshrestha
+/tests/                 @rochakshrestha
+/bin/                   @rochakshrestha
+/.github/               @rochakshrestha
+/phpstan.neon           @rochakshrestha
+/phpcs.xml.dist         @rochakshrestha
+/phpunit.xml.dist       @rochakshrestha
+/playwright.config.ts   @rochakshrestha
+/AGENTS.md              @rochakshrestha

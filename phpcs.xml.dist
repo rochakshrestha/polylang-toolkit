@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<ruleset name="Toolkit for Polylang">
+	<description>Coding standards for Toolkit for Polylang. Protected file: changes need the spec-change label.</description>
+
+	<file>toolkit-for-polylang.php</file>
+	<file>uninstall.php</file>
+	<file>src</file>
+	<file>tests/phpunit</file>
+
+	<exclude-pattern>vendor/*</exclude-pattern>
+	<exclude-pattern>node_modules/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+	<arg name="parallel" value="8"/>
+
+	<config name="testVersion" value="8.1-"/>
+	<config name="minimum_wp_version" value="6.8"/>
+
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress">
+		<!-- PSR-4 file names (src/Foo/Bar.php) instead of class-bar.php. -->
+		<exclude name="WordPress.Files.FileName"/>
+	</rule>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="toolkit-for-polylang"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="tkpll"/>
+				<element value="ToolkitForPolylang"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Tests may use non-prefixed globals and long test method names. -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.Files.FileName">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<!-- Test docblocks may hold only tags such as @spec and @group. -->
+	<rule ref="Generic.Commenting.DocComment.MissingShort">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.MissingParamTag">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+</ruleset>
