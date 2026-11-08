@@ -7,6 +7,7 @@
  * @package ToolkitForPolylang
  */
 
+// Composer autoloader: test fixtures and PHPUnit polyfills.
 require_once dirname( __DIR__, 2 ) . '/vendor/autoload.php';
 
 $tkpll_tests_dir = getenv( 'WP_TESTS_DIR' );

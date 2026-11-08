@@ -54,7 +54,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { php: '8.1', wp: '6.8', polylang: '3.9.0', coverage: false }
+          - { php: '8.1', wp: '6.8', polylang: '3.9', coverage: false }
           - { php: '8.3', wp: 'latest', polylang: '3.9.1', coverage: true }
           - { php: '8.3', wp: 'latest', polylang: 'latest', coverage: false }
           - { php: '8.4', wp: 'trunk', polylang: 'latest', coverage: false, experimental: true }
@@ -74,7 +74,7 @@ jobs:
           node -e '
             const m = process.env;
             const core = m.WP_VERSION === "latest" ? null : m.WP_VERSION === "trunk" ? "WordPress/WordPress#master" : "WordPress/WordPress#" + m.WP_VERSION;
-            const pl = m.PL_VERSION === "latest" ? "https://downloads.wordpress.org/plugin/polylang.latest-stable.zip" : "https://downloads.wordpress.org/plugin/polylang." + m.PL_VERSION + ".zip";
+            const pl = m.PL_VERSION === "latest" ? "https://downloads.wordpress.org/plugin/polylang.zip" : "https://downloads.wordpress.org/plugin/polylang." + m.PL_VERSION + ".zip";
             require("fs").writeFileSync(".wp-env.override.json", JSON.stringify({ core, phpVersion: m.PHP_VERSION_LEG, plugins: [ pl ] }));
           '
         env:

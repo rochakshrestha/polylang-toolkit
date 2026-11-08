@@ -28,16 +28,22 @@ function tkpll_uninstall_site(): void {
 	);
 
 	// Post and term meta added by modules, all prefixed `_tkpll_`.
-	foreach ( array( $wpdb->postmeta, $wpdb->termmeta ) as $table ) {
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names come from $wpdb.
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE meta_key LIKE %s", $wpdb->esc_like( '_tkpll_' ) . '%' ) );
-	}
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-off cleanup on uninstall.
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE %s", $wpdb->esc_like( '_tkpll_' ) . '%' ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-off cleanup on uninstall.
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->termmeta} WHERE meta_key LIKE %s", $wpdb->esc_like( '_tkpll_' ) . '%' ) );
 
 	wp_cache_flush();
 }
 
 if ( is_multisite() ) {
-	foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $tkpll_site_id ) {
+	$tkpll_site_ids = get_sites(
+		array(
+			'fields' => 'ids',
+			'number' => 0,
+		)
+	);
+	foreach ( $tkpll_site_ids as $tkpll_site_id ) {
 		switch_to_blog( (int) $tkpll_site_id );
 		tkpll_uninstall_site();
 		restore_current_blog();

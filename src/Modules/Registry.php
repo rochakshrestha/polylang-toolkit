@@ -41,7 +41,9 @@ final class Registry {
 	/**
 	 * Constructor.
 	 *
-	 * @param iterable<mixed> $modules Candidate modules. Anything that is not a ModuleInterface, or has an invalid or duplicate id, is ignored.
+	 * @param iterable $modules Candidate modules. Anything that is not a ModuleInterface, or has an invalid or duplicate id, is ignored.
+	 *
+	 * @phpstan-param iterable<mixed> $modules
 	 */
 	public function __construct( iterable $modules ) {
 		foreach ( $modules as $module ) {

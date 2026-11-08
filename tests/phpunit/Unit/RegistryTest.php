@@ -40,7 +40,14 @@ class RegistryTest extends WP_UnitTestCase {
 		$other    = new FakeModule( 'other', false );
 		$registry = new Registry( array( $overlap, $other ) );
 
-		$booted = $registry->boot( array( 'overlap' => true, 'other' => true ), Dependency::PRO_ACTIVE, new Adapter() );
+		$booted = $registry->boot(
+			array(
+				'overlap' => true,
+				'other'   => true,
+			),
+			Dependency::PRO_ACTIVE,
+			new Adapter()
+		);
 
 		$this->assertSame( array( 'other' ), $booted );
 		$this->assertSame( array( 'overlap' ), $registry->blocked_by_pro() );
