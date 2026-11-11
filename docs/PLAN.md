@@ -68,7 +68,7 @@ AGENTS.md, CLAUDE.md→AGENTS.md    agent rules, commands, definition of done
 - [x] Gate tags: a criterion tagged `[seo]`, `[coexistence]`, `[performance]` or `[security]` needs a test in that group (gate 5); an empty group gate reports N/A instead of PASS.
 - [x] Tests for the spec checker itself (`npm run test:tools`).
 - [x] Spec template (`docs/specs/_template.md`); DUP spec rewritten to it and approved by the owner (2026-11-11).
-- [ ] Red-first CI job: every new pending test must fail against `main`.
+- [x] Red-first CI job: every new pending PHPUnit test must fail against the base branch (`bin/check-red-first.mjs`). Pending Playwright tests are listed, not yet run.
 - [ ] `bin/benchmark-selftest`: seeded bad patches, each must fail its declared gate.
 - [ ] Playwright fixture failing on console errors and new `debug.log` lines; `classic` project (Classic Editor + classic theme).
 - [ ] Module settings contract (`HasSettings`, one settings tab per module), as CORE-11/12.
@@ -84,6 +84,8 @@ AGENTS.md, CLAUDE.md→AGENTS.md    agent rules, commands, definition of done
 5. PR description lists spec IDs covered and pastes the `bin/benchmark` summary.
 
 ## The benchmark (`bin/benchmark` = definition of done)
+Outside the numbered gates, the `red-first` PR job checks test quality: every pending test a PR adds must fail against the base branch's code.
+
 Gates 7, 8, 11 and 12 are PHPUnit groups. A group with no test reports **N/A**, never PASS, and gate 5 forces every gate-tagged criterion to have a test in its group.
 
 | # | Gate | Tool | Pass bar |
