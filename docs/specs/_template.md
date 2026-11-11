@@ -34,6 +34,8 @@ gate 11, `[security]` gate 12. A tagged criterion needs a test in that group.
 - **XXX-02** [security] Given a user without capability …, when …, then nothing is written.
 -->
 
+A criterion that says something does *not* happen still needs a test that fails before the code exists (CI job `red-first`), so its test pairs it with a control assertion; see "Red first" in AGENTS.md.
+
 Every module spec includes at least: one `[security]` criterion per write or per read of user input, one `[coexistence]` criterion (off by default; behaviour with Polylang Pro and with Polylang's own options), and one `[performance]` criterion (cost on requests where the module has nothing to do).
 
 ## Fixtures

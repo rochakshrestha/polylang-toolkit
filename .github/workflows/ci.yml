@@ -28,6 +28,48 @@ jobs:
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: node bin/check-protected-paths.mjs "origin/${{ github.base_ref }}"
 
+  # Red-first: every pending test a PR adds must FAIL against the base branch's product code.
+  red-first:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Find new pending tests
+        id: list
+        run: |
+          node bin/check-red-first.mjs list "origin/${{ github.base_ref }}"
+          echo "count=$(node bin/check-red-first.mjs list "origin/${{ github.base_ref }}" --count)" >> "$GITHUB_OUTPUT"
+      - if: steps.list.outputs.count != '0'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - if: steps.list.outputs.count != '0'
+        run: composer install --no-interaction --no-progress && npm ci
+      - name: Use the base branch's product code (tests stay as in this PR)
+        if: steps.list.outputs.count != '0'
+        run: |
+          rm -rf src
+          git checkout "origin/${{ github.base_ref }}" -- src toolkit-for-polylang.php uninstall.php
+          git status --short
+      - if: steps.list.outputs.count != '0'
+        run: npx wp-env start
+      - name: Run the pending group (failures expected)
+        if: steps.list.outputs.count != '0'
+        run: |
+          mkdir -p build
+          npx wp-env run tests-cli --env-cwd=wp-content/plugins/toolkit-for-polylang \
+            vendor/bin/phpunit --no-coverage --group pending --exclude-group tkpll-none \
+            --log-junit build/red-first.xml > build/red-first.log 2>&1 || true
+          tail -n 40 build/red-first.log
+      - name: Every new pending test must fail
+        run: node bin/check-red-first.mjs verify "origin/${{ github.base_ref }}" build/red-first.xml --log build/red-first.log
+
   static:
     runs-on: ubuntu-latest
     steps:
