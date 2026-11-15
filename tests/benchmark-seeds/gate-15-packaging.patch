@@ -1,0 +1,17 @@
+Gate: 15
+Expect: Version header
+Why: The plugin header version and TKPLL_VERSION disagree.
+
+diff --git a/toolkit-for-polylang.php b/toolkit-for-polylang.php
+index eb50e87..cef823e 100644
+--- a/toolkit-for-polylang.php
++++ b/toolkit-for-polylang.php
+@@ -9,7 +9,7 @@
+  * Plugin Name:       Toolkit for Polylang
+  * Plugin URI:        https://github.com/rochakshrestha/polylang-toolkit
+  * Description:       Essential extras for free Polylang: translated slugs, content duplication, field sync and better media handling. Not affiliated with WP SYNTEX / Polylang.
+- * Version:           0.1.0-dev
++ * Version:           0.1.1-dev
+  * Requires at least: 6.8
+  * Requires PHP:      8.1
+  * Author:            Rochak Shrestha

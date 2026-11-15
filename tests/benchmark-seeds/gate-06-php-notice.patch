@@ -1,0 +1,12 @@
+Gate: 6
+Expect: tkpll-fixture: new debug\.log lines.*tkpll selftest notice
+Why: The settings page raises a PHP notice; the e2e fixture must catch it in the site's debug log.
+
+diff --git a/src/Admin/Settings.php b/src/Admin/Settings.php
+--- a/src/Admin/Settings.php
++++ b/src/Admin/Settings.php
+@@ -112,3 +112,4 @@ final class Settings {
+ 		}
+
++		trigger_error( 'tkpll selftest notice', E_USER_NOTICE );
+ 		$settings = Options::get();

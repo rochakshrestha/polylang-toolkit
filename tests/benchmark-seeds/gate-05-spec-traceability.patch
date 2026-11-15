@@ -1,0 +1,33 @@
+Gate: 5
+Expect: ZZ-99
+Why: A test cites ZZ-99, which no spec defines.
+
+diff --git a/tests/phpunit/Unit/SelftestUnknownIdTest.php b/tests/phpunit/Unit/SelftestUnknownIdTest.php
+new file mode 100644
+index 0000000..77fa149
+--- /dev/null
++++ b/tests/phpunit/Unit/SelftestUnknownIdTest.php
+@@ -0,0 +1,23 @@
++<?php
++/**
++ * Benchmark self-test seed.
++ *
++ * @package ToolkitForPolylang
++ */
++
++namespace ToolkitForPolylang\Tests\Unit;
++
++use WP_UnitTestCase;
++
++/**
++ * Cites a criterion no spec defines.
++ */
++class SelftestUnknownIdTest extends WP_UnitTestCase {
++
++	/**
++	 * @spec ZZ-99
++	 */
++	public function test_cites_an_unknown_id(): void {
++		$this->assertTrue( true );
++	}
++}

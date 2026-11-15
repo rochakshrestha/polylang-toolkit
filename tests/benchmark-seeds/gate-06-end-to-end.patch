@@ -1,0 +1,17 @@
+Gate: 6
+Expect: not affiliated with or endorsed by WP SYNTEX
+Why: The settings page drops the non-affiliation disclaimer.
+
+diff --git a/src/Admin/Settings.php b/src/Admin/Settings.php
+index 7515ac4..29778aa 100644
+--- a/src/Admin/Settings.php
++++ b/src/Admin/Settings.php
+@@ -120,7 +120,7 @@ final class Settings {
+ 
+ 			<div class="notice notice-info inline tkpll-disclaimer">
+ 				<p>
+-					<?php esc_html_e( 'Toolkit for Polylang is an independent, free companion plugin for free Polylang. It is not affiliated with or endorsed by WP SYNTEX, the makers of Polylang.', 'toolkit-for-polylang' ); ?>
++					<?php esc_html_e( 'Toolkit for Polylang is an independent, free companion plugin for free Polylang.', 'toolkit-for-polylang' ); ?>
+ 				</p>
+ 				<p>
+ 					<a href="https://polylang.pro/documentation/"><?php esc_html_e( 'Official Polylang documentation', 'toolkit-for-polylang' ); ?></a>

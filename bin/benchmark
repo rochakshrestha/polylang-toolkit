@@ -6,6 +6,8 @@
 #   bin/benchmark            all local gates (needs Docker for wp-env)
 #   bin/benchmark --quick    static gates only (standards, static analysis, spec traceability, packaging)
 #   bin/benchmark --no-e2e   skip Playwright
+#   bin/benchmark --gate 3,5 only these gates (used by bin/benchmark-selftest). Gate 4 also runs 3
+#                            (it reads 3's coverage report), gate 14 also runs 15 (it checks 15's zip).
 #
 # Gates 7 (URL/SEO), 8 (coexistence), 11 (performance), 12 (security) are PHPUnit groups that run
 # inside gate 3 and are also reported separately (N/A while a group has no test). Gates 9 (AI add-ons) and 10 (version
@@ -15,13 +17,25 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 QUICK=0
 E2E=1
-for arg in "$@"; do
-	case "$arg" in
+ONLY=""
+while [[ $# -gt 0 ]]; do
+	case "$1" in
 		--quick) QUICK=1 ;;
 		--no-e2e) E2E=0 ;;
-		*) echo "Unknown option: $arg"; exit 2 ;;
+		--gate)
+			[[ "${2:-}" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "--gate needs a list like 3,5"; exit 2; }
+			ONLY="$2"; shift ;;
+		*) echo "Unknown option: $1"; exit 2 ;;
 	esac
+	shift
 done
+
+# want <n>: whether gate n runs. Without --gate every gate runs.
+want() { [[ -z "$ONLY" || ",$ONLY," == *",$1,"* ]]; }
+want 4 && ONLY=${ONLY:+$ONLY,3}
+want 14 && ONLY=${ONLY:+$ONLY,15}
+want_any() { local n; for n in "$@"; do want "$n" && return 0; done; return 1; }
+ENV_GATES=(3 4 6 7 8 11 12 13 14)
 
 mkdir -p build
 declare -a ROWS=()
@@ -76,38 +90,42 @@ wp_cli() { npx wp-env run cli --env-cwd="$PLUGIN_CWD" wp "$@"; }
 
 have_env() { npx wp-env run cli wp core version >/dev/null 2>&1; }
 
-if [[ ! -d vendor ]]; then
+if [[ ! -d vendor ]] && want_any 1 2 3 4 7 8 11 12; then
 	php_tool composer install --no-interaction --no-progress || { echo "composer install failed"; exit 1; }
 fi
 
-gate 1 "Coding standards" php_tool vendor/bin/phpcs
-gate 2 "Static analysis" php_tool vendor/bin/phpstan analyse --memory-limit=1G --no-progress
-gate 5 "Spec traceability" node bin/check-spec-coverage.mjs
-gate 15 "Packaging" bash bin/build-zip.sh
+want 1 && gate 1 "Coding standards" php_tool vendor/bin/phpcs
+want 2 && gate 2 "Static analysis" php_tool vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+want 5 && gate 5 "Spec traceability" node bin/check-spec-coverage.mjs
+want 15 && gate 15 "Packaging" bash bin/build-zip.sh
 
-if [[ $QUICK -eq 1 ]]; then
-	for n in 3 4 6 7 8 11 12 13 14; do record "$n" "(skipped: --quick)" SKIP ""; done
+if ! want_any "${ENV_GATES[@]}"; then
+	:
+elif [[ $QUICK -eq 1 ]]; then
+	for n in "${ENV_GATES[@]}"; do want "$n" && record "$n" "(skipped: --quick)" SKIP ""; done
 elif ! have_env; then
 	echo "wp-env is not running. Start it with: npm run env:start:coverage"
-	for n in 3 4 6 7 8 11 12 13 14; do record "$n" "(wp-env not running)" FAIL "start wp-env"; done
+	for n in "${ENV_GATES[@]}"; do want "$n" && record "$n" "(wp-env not running)" FAIL "start wp-env"; done
 else
-	gate 3 "Integration tests (+coverage)" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" env XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-clover build/coverage/clover.xml
-	gate 4 "Coverage >= 80%" node bin/check-coverage.mjs build/coverage/clover.xml
-	group_gate 7 "URL/SEO output" seo
-	group_gate 8 "Coexistence" coexistence
-	group_gate 11 "Performance" performance
-	group_gate 12 "Security" security
-	gate 13 "i18n (make-pot)" bash -c "npx wp-env run cli --env-cwd=$PLUGIN_CWD wp i18n make-pot . build/toolkit-for-polylang.pot --exclude=vendor,node_modules,tests,build,dist 2>&1 | tee build/make-pot.log; ! grep -qi 'warning' build/make-pot.log"
-	gate 14 "Plugin Check + package smoke (built zip)" bash bin/package-smoke.sh
-	if [[ $E2E -eq 1 ]]; then
+	want 3 && gate 3 "Integration tests (+coverage)" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" env XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-clover build/coverage/clover.xml
+	want 4 && gate 4 "Coverage >= 80%" node bin/check-coverage.mjs build/coverage/clover.xml
+	want 7 && group_gate 7 "URL/SEO output" seo
+	want 8 && group_gate 8 "Coexistence" coexistence
+	want 11 && group_gate 11 "Performance" performance
+	want 12 && group_gate 12 "Security" security
+	want 13 && gate 13 "i18n (make-pot)" bash bin/check-i18n.sh
+	want 14 && gate 14 "Plugin Check + package smoke (built zip)" bash bin/package-smoke.sh
+	if ! want 6; then
+		:
+	elif [[ $E2E -eq 1 ]]; then
 		gate 6 "End-to-end (+axe)" npx playwright test
 	else
 		record 6 "End-to-end" SKIP "--no-e2e"
 	fi
 fi
 
-record 9 "AI add-on compatibility" SKIP "CI only (job ai-addons)"
-record 10 "Compatibility matrix" SKIP "CI only (job phpunit matrix)"
+want 9 && record 9 "AI add-on compatibility" SKIP "CI only (job ai-addons)"
+want 10 && record 10 "Compatibility matrix" SKIP "CI only (job phpunit matrix)"
 
 {
 	echo "### Benchmark summary ($(git rev-parse --short HEAD 2>/dev/null || echo 'no commit'))"

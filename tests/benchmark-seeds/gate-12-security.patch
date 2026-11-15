@@ -1,0 +1,19 @@
+Gate: 12
+Expect: test_sanitize_keeps_only_known_ids_as_booleans
+Why: Options::sanitize() keeps module ids nobody registered.
+
+diff --git a/src/Options.php b/src/Options.php
+index 9d832b9..1f5c6be 100644
+--- a/src/Options.php
++++ b/src/Options.php
+@@ -81,8 +81,8 @@ final class Options {
+ 			return $clean;
+ 		}
+ 
+-		foreach ( $known_ids as $id ) {
+-			$clean['modules'][ $id ] = ! empty( $input['modules'][ $id ] );
++		foreach ( $input['modules'] as $id => $enabled ) {
++			$clean['modules'][ (string) $id ] = ! empty( $enabled );
+ 		}
+ 
+ 		return $clean;

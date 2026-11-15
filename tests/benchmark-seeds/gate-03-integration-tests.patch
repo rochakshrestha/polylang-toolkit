@@ -1,0 +1,19 @@
+Gate: 3
+Expect: test_too_old_below_minimum
+Why: Dependency::evaluate() no longer reports a Polylang older than the minimum.
+
+diff --git a/src/Dependency.php b/src/Dependency.php
+index ea1f990..a968f7e 100644
+--- a/src/Dependency.php
++++ b/src/Dependency.php
+@@ -36,10 +36,6 @@ final class Dependency {
+ 			return self::MISSING;
+ 		}
+ 
+-		if ( version_compare( $polylang_version, $min_version, '<' ) ) {
+-			return self::TOO_OLD;
+-		}
+-
+ 		return $pro ? self::PRO_ACTIVE : self::OK;
+ 	}
+ 

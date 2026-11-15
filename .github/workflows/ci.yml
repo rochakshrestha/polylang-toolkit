@@ -28,6 +28,48 @@ jobs:
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: node bin/check-protected-paths.mjs "origin/${{ github.base_ref }}"
 
+  # Red-first: every pending test a PR adds must FAIL against the base branch's product code.
+  red-first:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Find new pending tests
+        id: list
+        run: |
+          node bin/check-red-first.mjs list "origin/${{ github.base_ref }}"
+          echo "count=$(node bin/check-red-first.mjs list "origin/${{ github.base_ref }}" --count)" >> "$GITHUB_OUTPUT"
+      - if: steps.list.outputs.count != '0'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - if: steps.list.outputs.count != '0'
+        run: composer install --no-interaction --no-progress && npm ci
+      - name: Use the base branch's product code (tests stay as in this PR)
+        if: steps.list.outputs.count != '0'
+        run: |
+          rm -rf src
+          git checkout "origin/${{ github.base_ref }}" -- src toolkit-for-polylang.php uninstall.php
+          git status --short
+      - if: steps.list.outputs.count != '0'
+        run: npx wp-env start
+      - name: Run the pending group (failures expected)
+        if: steps.list.outputs.count != '0'
+        run: |
+          mkdir -p build
+          npx wp-env run tests-cli --env-cwd=wp-content/plugins/toolkit-for-polylang \
+            vendor/bin/phpunit --no-coverage --group pending --exclude-group tkpll-none \
+            --log-junit build/red-first.xml > build/red-first.log 2>&1 || true
+          tail -n 40 build/red-first.log
+      - name: Every new pending test must fail
+        run: node bin/check-red-first.mjs verify "origin/${{ github.base_ref }}" build/red-first.xml --log build/red-first.log
+
   static:
     runs-on: ubuntu-latest
     steps:
@@ -133,8 +175,13 @@ jobs:
           npx wp-env run cli wp plugin is-active toolkit-for-polylang
           npx wp-env run cli wp eval 'echo "ok";'
       - name: No PHP notices from the toolkit in the debug log (other plugins' notices are shown, not failed)
+        # Page requests log to build/wp-debug/debug.log (.wp-env.json), a host file. WP-CLI may still
+        # log to wp-content/debug.log in the container, so both are checked.
         run: |
           npx wp-env run cli bash -c 'touch /var/www/html/wp-content/debug.log; cat /var/www/html/wp-content/debug.log; ! grep -q toolkit-for-polylang /var/www/html/wp-content/debug.log'
+          test -f build/wp-debug/debug.log
+          cat build/wp-debug/debug.log
+          ! grep -q toolkit-for-polylang build/wp-debug/debug.log
 
   # Benchmark gate 13 (i18n). Gate 14 (Plugin Check) runs on the built zip in the package job.
   wp-checks:
@@ -146,11 +193,8 @@ jobs:
           node-version-file: .nvmrc
       - run: npm ci
       - run: npx wp-env start
-      - name: i18n (make-pot without warnings)
-        run: |
-          mkdir -p build
-          npx wp-env run cli --env-cwd=wp-content/plugins/toolkit-for-polylang wp i18n make-pot . build/toolkit-for-polylang.pot --exclude=vendor,node_modules,tests,build,dist 2>&1 | tee build/make-pot.log
-          ! grep -qi 'warning' build/make-pot.log
+      - name: i18n (make-pot exits cleanly, without warnings)
+        run: bash bin/check-i18n.sh
 
   # Benchmark gates 14 (Plugin Check on the built zip) and 15 (install, uninstall).
   package:

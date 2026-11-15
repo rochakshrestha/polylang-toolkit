@@ -1,0 +1,12 @@
+Gate: 6
+Expect: tkpll-fixture: browser console errors.*tkpll selftest console
+Why: The settings page logs a browser console error; the e2e fixture must catch it in every test, not only CORE-09.
+
+diff --git a/src/Admin/Settings.php b/src/Admin/Settings.php
+--- a/src/Admin/Settings.php
++++ b/src/Admin/Settings.php
+@@ -112,3 +112,4 @@ final class Settings {
+ 		}
+
++		echo '<script>console.error( "tkpll selftest console" );</script>';
+ 		$settings = Options::get();

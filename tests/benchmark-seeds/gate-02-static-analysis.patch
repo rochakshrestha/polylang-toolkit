@@ -1,0 +1,12 @@
+Gate: 2
+Expect: should return bool but returns string
+Why: Dependency::can_boot() returns the status string where it promises a bool.
+
+diff --git a/src/Dependency.php b/src/Dependency.php
+--- a/src/Dependency.php
++++ b/src/Dependency.php
+@@ -65,3 +65,3 @@ final class Dependency {
+ 	public static function can_boot( string $status ): bool {
+-		return self::OK === $status || self::PRO_ACTIVE === $status;
++		return $status;
+ 	}
