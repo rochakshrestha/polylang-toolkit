@@ -1,8 +1,12 @@
 # Module settings (CORE, part 2)
 
-Status: draft
+Status: approved
 
-Owner approval: 2026-11-15. The status line changes to `approved` in the tests PR, which adds the pending tests that gate 5 requires for an approved spec.
+Owner approval: 2026-11-15. The owner also approved these changes made while writing the tests (2026-11-15):
+- `Options::module_settings()` takes the module, not its id, and `HasSettings` extends `ModuleInterface` (the registry is built once per request, so an id lookup would depend on the shared plugin instance).
+- The `tab` argument must match a module id exactly instead of going through `sanitize_key()`.
+- The form posts `_tab`; a save survives WordPress running the sanitize callback twice on a fresh site.
+- "Held back by Polylang Pro" is defined as listed in `Registry::blocked_by_pro()`.
 
 <!-- CORE-11 and CORE-12 extend docs/specs/foundation.md. They live in their own file because
 foundation.md is `implemented`, and gate 5 would fail there until their tests exist. -->
@@ -13,10 +17,10 @@ Delta over free Polylang: none. This is plugin shell, like `foundation.md`. Toda
 | Hook or function | Why |
 |---|---|
 | WordPress `register_setting()`, `settings_fields()`, `options.php` | Saving keeps going through the Settings API, which checks the `tkpll-options` nonce and `manage_options`. |
-| WordPress `sanitize_key()` | Reading the `tab` query argument. |
+| WordPress `wp_unslash()` | Reading the `tab` query argument, which must then exactly equal the id of a registered `HasSettings` module (no case folding or stripping, so `ALPHA` or `../alpha` is not `alpha`). |
 
 ## Contract
-`ToolkitForPolylang\Modules\HasSettings`, implemented by a module next to `ModuleInterface`:
+`ToolkitForPolylang\Modules\HasSettings`, which extends `ModuleInterface`. A module with settings implements it instead of `ModuleInterface`:
 
 | Method | Returns |
 |---|---|
@@ -26,6 +30,10 @@ Delta over free Polylang: none. This is plugin shell, like `foundation.md`. Toda
 
 These methods run on admin screens only, so they may call translation functions.
 
+The settings form posts `tkpll_settings[_tab]`, the tab being saved (`modules` or a module id), so a save only replaces that tab's key. `_tab` is never stored. The save gives the same result when WordPress runs the sanitize callback twice, which it does on the first save of a fresh site (`update_option()`, then `add_option()` with the first result).
+
+"Held back by Polylang Pro" means listed in `Registry::blocked_by_pro()`.
+
 ## Settings
 None of its own. Module settings are stored under `tkpll_settings[<module id>]`, next to `tkpll_settings[modules]`.
 
@@ -34,7 +42,7 @@ Nothing new: everything stays inside the existing `tkpll_settings` option, so CO
 
 ## Acceptance criteria
 - **CORE-11** [security] Given registered modules, some of which implement `HasSettings`, when an administrator opens the settings page, then it shows a "Modules" tab (the on/off switches, the default) followed by one tab per `HasSettings` module, in registry order, as links to `admin.php?page=tkpll&tab=<id>`, with `aria-current="page"` on the active tab. A module without `HasSettings` gets no tab. A `tab` value that is not the id of such a module (missing, unknown, or not a valid id) shows the Modules tab. The tab of a module that is switched off, or held back by Polylang Pro, still opens, and says so above its fields.
-- **CORE-12** [security] Given a module with `HasSettings`, when its tab is saved through `options.php`, then `tkpll_settings[<id>]` holds exactly what its `sanitize_settings()` returned, the module switches and every other module's settings are unchanged, and when the Modules tab is saved, every module's settings are unchanged. A save without the `tkpll-options` nonce, or by a user without `manage_options`, changes nothing. `Options::module_settings( $id )` returns `default_settings()` with stored values for its keys put over it, ignoring stored keys that `default_settings()` does not have.
+- **CORE-12** [security] Given a module with `HasSettings`, when its tab is saved through `options.php`, then `tkpll_settings[<id>]` holds exactly what its `sanitize_settings()` returned, the module switches and every other module's settings are unchanged, and when the Modules tab is saved, every module's settings are unchanged. A save without the `tkpll-options` nonce, or by a user without `manage_options`, changes nothing. `Options::module_settings( $module )` returns `default_settings()` with stored values for its keys put over it, ignoring stored keys that `default_settings()` does not have.
 
 ## Edge cases
 | Input | Expected |
