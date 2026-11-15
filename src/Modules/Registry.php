@@ -18,6 +18,11 @@ defined( 'ABSPATH' ) || exit;
 final class Registry {
 
 	/**
+	 * Ids no module may take: `modules` holds the on/off switches in `tkpll_settings`.
+	 */
+	public const RESERVED_IDS = array( 'modules' );
+
+	/**
 	 * Modules keyed by id.
 	 *
 	 * @var array<string, ModuleInterface>
@@ -51,7 +56,7 @@ final class Registry {
 				continue;
 			}
 			$id = $module->id();
-			if ( ! preg_match( '/^[a-z][a-z0-9_]{1,31}$/', $id ) || isset( $this->modules[ $id ] ) ) {
+			if ( ! preg_match( '/^[a-z][a-z0-9_]{1,31}$/', $id ) || isset( $this->modules[ $id ] ) || in_array( $id, self::RESERVED_IDS, true ) ) {
 				continue;
 			}
 			$this->modules[ $id ] = $module;
@@ -88,6 +93,21 @@ final class Registry {
 	 */
 	public function all(): array {
 		return $this->modules;
+	}
+
+	/**
+	 * Registered modules that have their own settings, keyed by id, in registry order.
+	 *
+	 * @return array<string, HasSettings>
+	 */
+	public function with_settings(): array {
+		$out = array();
+		foreach ( $this->modules as $id => $module ) {
+			if ( $module instanceof HasSettings ) {
+				$out[ $id ] = $module;
+			}
+		}
+		return $out;
 	}
 
 	/**
