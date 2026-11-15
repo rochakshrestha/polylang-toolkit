@@ -177,9 +177,13 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 	 */
 	public function test_tab_of_a_module_held_back_by_pro_opens_and_says_so(): void {
 		$this->add_modules( new FakeSettingsModule( 'alpha', true ), new FakeSettingsModule( 'beta' ) );
-		update_option( Options::OPTION_NAME, array( 'modules' => array( 'alpha' => true ) ) );
+		$switches = array(
+			'alpha' => true,
+			'beta'  => true,
+		);
+		update_option( Options::OPTION_NAME, array( 'modules' => $switches ) );
 		$plugin = new Plugin();
-		$plugin->registry()->boot( array( 'alpha' => true ), Dependency::PRO_ACTIVE, $plugin->adapter() );
+		$plugin->registry()->boot( $switches, Dependency::PRO_ACTIVE, $plugin->adapter() );
 		$this->assertSame( array( 'alpha' ), $plugin->registry()->blocked_by_pro() );
 
 		$html = $this->render( 'administrator', 'alpha', $plugin );
