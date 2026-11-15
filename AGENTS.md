@@ -39,6 +39,10 @@ Protected paths (CODEOWNERS): `docs/specs/`, `docs/polylang-api.md`, `tests/`, `
 | E2E | `npm run test:e2e` |
 | Spec traceability | `npm run check:specs` |
 | Tests of the benchmark tools | `npm run test:tools` |
+| One gate only | `bin/benchmark --gate 5` (list: `--gate 3,5`) |
+| Benchmark self-test (each seed must turn its gate red) | `npm run benchmark:selftest` (`--quick`: no-Docker gates only) |
+
+**Benchmark seeds.** `tests/benchmark-seeds/*.patch` are known-bad changes, one per gate, applied by `bin/benchmark-selftest`. Each header names the `Gate:` that must FAIL, an `Expect:` regex its log must match and a `Why:`. When a product change makes a seed stop applying, regenerate the seed's diff with the same mistake; never weaken its `Expect:`. A code PR may not touch `tests/`, so that fix is its own PR touching only `tests/benchmark-seeds/`. The self-test workflow does not run on `src/` changes; its weekly run catches stale seeds. Gate 7 gets a seed once its first `@group seo` test exists.
 
 **Tests and languages.** `tests/phpunit/bootstrap.php` defines `PLL_ADMIN` so Polylang builds its admin context (otherwise a PHPUnit run gets no `PLL()`, no `pll_*` API and no `pll_init`). The WordPress test library reinstalls the test database, so no Polylang languages exist in PHPUnit. Create the languages a test needs in `set_up()` (`PLL()->model->add_language()`); the dev environment from `bin/wp-env-after-start.sh` has en/fr/ne for Playwright.
 

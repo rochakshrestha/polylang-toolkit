@@ -1,0 +1,17 @@
+Gate: 13
+Expect: translators
+Why: A translatable string with a placeholder has no translators: comment.
+
+diff --git a/src/Admin/Settings.php b/src/Admin/Settings.php
+index 7515ac4..c530654 100644
+--- a/src/Admin/Settings.php
++++ b/src/Admin/Settings.php
+@@ -98,7 +98,7 @@ final class Settings {
+ 		$url = admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+ 		array_unshift(
+ 			$links,
+-			sprintf( '<a href="%s">%s</a>', esc_url( $url ), esc_html__( 'Settings', 'toolkit-for-polylang' ) )
++			sprintf( '<a href="%s">%s</a>', esc_url( $url ), sprintf( esc_html__( 'Settings for %s', 'toolkit-for-polylang' ), 'Polylang' ) )
+ 		);
+ 		return $links;
+ 	}

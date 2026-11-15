@@ -69,7 +69,7 @@ AGENTS.md, CLAUDE.md→AGENTS.md    agent rules, commands, definition of done
 - [x] Tests for the spec checker itself (`npm run test:tools`).
 - [x] Spec template (`docs/specs/_template.md`); DUP spec rewritten to it and approved by the owner (2026-11-11).
 - [x] Red-first CI job: every new pending PHPUnit test must fail against the base branch (`bin/check-red-first.mjs`). Pending Playwright tests are listed, not yet run.
-- [ ] `bin/benchmark-selftest`: seeded bad patches, each must fail its declared gate.
+- [x] `bin/benchmark-selftest`: seeded bad patches (`tests/benchmark-seeds/`), each must fail its declared gate for the reason in its `Expect:` line; CI workflow `benchmark-selftest.yml`. Gate 7 has no seed until its first `@group seo` test exists.
 - [ ] Playwright fixture failing on console errors and new `debug.log` lines; `classic` project (Classic Editor + classic theme).
 - [ ] Module settings contract (`HasSettings`, one settings tab per module), as CORE-11/12.
 - [ ] Task queue (`docs/TASKS.md`), decision log (`docs/decisions/`), role separation in AGENTS.md.

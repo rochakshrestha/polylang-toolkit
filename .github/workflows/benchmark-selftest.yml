@@ -1,0 +1,55 @@
+name: Benchmark self-test
+
+# Applies each known-bad seed in tests/benchmark-seeds/ and checks the benchmark gate it targets
+# goes red for the expected reason (bin/benchmark-selftest). Runs when the benchmark, its seeds or
+# a gate's config changes, weekly (product changes can make a seed stale), and on demand.
+on:
+  pull_request:
+    paths:
+      - 'bin/**'
+      - 'tests/benchmark-seeds/**'
+      - '.github/workflows/benchmark-selftest.yml'
+      - 'phpcs.xml.dist'
+      - 'phpstan.neon'
+      - 'phpunit.xml.dist'
+      - 'playwright.config.ts'
+      - '.wp-env.json'
+      - 'composer.json'
+      - 'package.json'
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: selftest-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx wp-env start --xdebug=coverage
+      - name: Every seed must turn its gate red
+        run: bash bin/benchmark-selftest
+      - if: always()
+        run: cat build/selftest-summary.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: benchmark-selftest-logs
+          path: build/selftest/

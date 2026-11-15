@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+# Benchmark self-test: proves each benchmark gate can go red.
+# Protected file: changes need the spec-change label.
+#
+# Each seed in tests/benchmark-seeds/*.patch is a known-bad change. Its header (the lines before the
+# first `diff --git`) declares:
+#   Gate: <n>          the gate that must FAIL with the seed applied
+#   Expect: <regex>    must match (grep -Ei) in build/gate-<n>.log, so the gate fails for this reason
+#                      and not because something else broke
+#   Also-Pass: <n,..>  optional: gates that must still PASS (gate 4 needs gate 3 green, or a missing
+#                      coverage report would count as a coverage failure)
+#   Why: <text>        what the seed breaks
+#
+# Steps: the seeded gates must pass on the unchanged tree (baseline); then each seed is applied in
+# place, `bin/benchmark --gate <n>` runs, and the seed is reversed. Only the files a seed touches must
+# be unmodified; the rest of your working tree is left alone, and the script checks it is unchanged
+# at the end.
+#
+# Usage:
+#   bin/benchmark-selftest               every seed (needs Docker for wp-env, like bin/benchmark)
+#   bin/benchmark-selftest --quick       only seeds for gates that need no wp-env (1, 2, 5, 15)
+#   bin/benchmark-selftest --gate 5,15   only seeds for these gates
+# A summary is written to build/selftest-summary.md; gate logs per seed go to build/selftest/<seed>/.
+set -uo pipefail
+
+cd "$(dirname "$0")/.."
+SEEDS_DIR=${TKPLL_SEEDS_DIR:-tests/benchmark-seeds} # override only to test this script
+STATIC_GATES=",1,2,5,15,"
+# Gates bin/benchmark runs locally. 9 and 10 are CI-only jobs and cannot be seeded here.
+LOCAL_GATES=(1 2 3 4 5 6 7 8 11 12 13 14 15)
+QUICK=0
+ONLY=""
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		--quick) QUICK=1 ;;
+		--gate)
+			[[ "${2:-}" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "--gate needs a list like 5,15"; exit 2; }
+			ONLY="$2"; shift ;;
+		*) echo "Unknown option: $1"; exit 2 ;;
+	esac
+	shift
+done
+
+# header <seed> <field>: value of a header field (only the lines before the first diff count).
+header() { awk -v f="$2" '/^diff --git /{exit} index($0, f ": ") == 1 {print substr($0, length(f) + 3); exit}' "$1"; }
+
+# status <gate>: the gate's result in build/benchmark-summary.md (PASS, FAIL, N/A, SKIP or empty).
+status() {
+	awk -F'|' -v n="$1" '{ g = $2; gsub(/ /, "", g); if (g == n) { s = $4; gsub(/^ +| +$/, "", s); print s; exit } }' \
+		build/benchmark-summary.md 2>/dev/null
+}
+
+selected() { # gate
+	[[ $QUICK -eq 1 && "$STATIC_GATES" != *",$1,"* ]] && return 1
+	[[ -z "$ONLY" || ",$ONLY," == *",$1,"* ]]
+}
+
+mkdir -p build/selftest
+declare -a SEEDS=() ROWS=()
+FAILED=0
+declare -A SEEDED=()
+
+for seed in "$SEEDS_DIR"/*.patch; do
+	[[ -e "$seed" ]] || continue
+	gate=$(header "$seed" Gate)
+	if [[ ! "$gate" =~ ^[0-9]+$ || -z "$(header "$seed" Expect)" || -z "$(header "$seed" Why)" ]]; then
+		ROWS+=("| $(basename "$seed" .patch) | ? | FAIL | header needs Gate:, Expect: and Why: |")
+		FAILED=1
+		continue
+	fi
+	SEEDED[$gate]=1
+	selected "$gate" && SEEDS+=("$seed")
+done
+
+START_STATUS=$(git status --porcelain)
+APPLIED=""
+revert() {
+	if [[ -n "$APPLIED" ]]; then
+		git apply -R "$APPLIED" || echo "!! Could not reverse $APPLIED: undo it by hand (git apply -R $APPLIED)"
+		APPLIED=""
+	fi
+}
+trap revert EXIT
+trap 'revert; exit 130' INT TERM
+
+run_benchmark() { # gates, log file
+	local args=(--gate "$1")
+	[[ $QUICK -eq 1 ]] && args+=(--quick)
+	# No stale results: a benchmark that stops early must not look like it reported something.
+	rm -f build/gate-*.log build/benchmark-summary.md
+	bash bin/benchmark "${args[@]}" >"$2" 2>&1
+}
+
+if [[ ${#SEEDS[@]} -gt 0 ]]; then
+	# Baseline: every gate a selected seed fails, or needs green, must pass without the seed.
+	baseline_gates=()
+	for seed in "${SEEDS[@]}"; do
+		baseline_gates+=("$(header "$seed" Gate)")
+		also=$(header "$seed" Also-Pass)
+		[[ -n "$also" ]] && IFS=, read -ra extra <<<"$also" && baseline_gates+=("${extra[@]}")
+	done
+	list=$(printf '%s\n' "${baseline_gates[@]}" | sort -nu | paste -sd, -)
+	echo "== Baseline: gates $list on the unchanged tree"
+	run_benchmark "$list" build/selftest/baseline.log
+	for g in ${list//,/ }; do
+		s=$(status "$g")
+		if [[ "$s" != "PASS" ]]; then
+			echo "Baseline gate $g is '${s:-missing}' on the unchanged tree (see build/selftest/baseline.log)."
+			echo "Fix that first: a seed's failure can only be trusted when its gate is green without it."
+			exit 1
+		fi
+	done
+fi
+
+for seed in "${SEEDS[@]}"; do
+	name=$(basename "$seed" .patch)
+	gate=$(header "$seed" Gate)
+	expect=$(header "$seed" Expect)
+	also=$(header "$seed" Also-Pass)
+	out=build/selftest/$name
+	rm -rf "$out" && mkdir -p "$out"
+	echo
+	echo "== Seed $name (gate $gate): $(header "$seed" Why)"
+
+	mapfile -t files < <(git apply --numstat "$seed" 2>/dev/null | cut -f3)
+	if ! git apply --check "$seed" 2>"$out/apply.log"; then
+		ROWS+=("| $name | $gate | FAIL | seed no longer applies: update it (see $out/apply.log) |")
+		FAILED=1
+		continue
+	fi
+	if [[ ${#files[@]} -gt 0 ]] && ! git diff --quiet HEAD -- "${files[@]}"; then
+		ROWS+=("| $name | $gate | FAIL | you have local changes in ${files[*]}: commit or stash them |")
+		FAILED=1
+		continue
+	fi
+
+	git apply "$seed" && APPLIED=$seed
+	gates=$gate${also:+,$also}
+	run_benchmark "$gates" "$out/benchmark.log"
+	cp build/gate-*.log build/benchmark-summary.md "$out/" 2>/dev/null
+	revert
+
+	result=PASS
+	note="gate $gate failed for the expected reason"
+	s=$(status "$gate")
+	if [[ "$s" != "FAIL" ]]; then
+		result=FAIL; note="gate $gate was '${s:-missing}' with the seed applied; it must FAIL"
+	elif ! grep -Eiq -- "$expect" "$out/gate-$gate.log" 2>/dev/null; then
+		result=FAIL; note="gate $gate failed, but its log does not match /$expect/ (see $out/gate-$gate.log)"
+	else
+		for g in ${also//,/ }; do
+			gs=$(status "$g")
+			if [[ "$gs" != "PASS" ]]; then
+				result=FAIL; note="gate $g must stay PASS with the seed applied, was '${gs:-missing}'"
+			fi
+		done
+	fi
+	[[ $result == FAIL ]] && FAILED=1
+	ROWS+=("| $name | $gate | $result | $note |")
+done
+
+trap - EXIT INT TERM
+if [[ "$(git status --porcelain)" != "$START_STATUS" ]]; then
+	echo "!! The working tree differs from before the self-test. Check git status."
+	FAILED=1
+fi
+
+unseeded=()
+for g in "${LOCAL_GATES[@]}"; do
+	[[ -z "${SEEDED[$g]:-}" ]] && unseeded+=("$g")
+done
+
+{
+	echo "### Benchmark self-test ($(git rev-parse --short HEAD 2>/dev/null || echo 'no commit'))"
+	echo
+	if [[ ${#ROWS[@]} -eq 0 ]]; then
+		echo "No seed selected."
+	else
+		echo "| Seed | Gate | Result | Note |"
+		echo "|---|---|---|---|"
+		printf '%s\n' "${ROWS[@]}"
+	fi
+	echo
+	[[ ${#unseeded[@]} -gt 0 ]] && echo "Gates without a seed: ${unseeded[*]}. Gates 9 and 10 run only in CI."
+	[[ $QUICK -eq 1 ]] && echo "--quick: only seeds for gates 1, 2, 5 and 15 ran."
+	[[ -n "$ONLY" ]] && echo "--gate $ONLY: only seeds for these gates ran."
+} >build/selftest-summary.md
+
+echo
+cat build/selftest-summary.md
+if [[ $FAILED -eq 1 ]]; then
+	echo
+	echo "SELF-TEST FAILED"
+	exit 1
+fi
+echo
+echo "SELF-TEST PASSED"

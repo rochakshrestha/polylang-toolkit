@@ -1,0 +1,17 @@
+Gate: 1
+Expect: Options\.php
+Why: Options::defaults() loses the WordPress spacing around array arguments.
+
+diff --git a/src/Options.php b/src/Options.php
+index 9d832b9..116da5a 100644
+--- a/src/Options.php
++++ b/src/Options.php
+@@ -28,7 +28,7 @@ final class Options {
+ 	 * @return array{modules: array<string, bool>}
+ 	 */
+ 	public static function defaults(): array {
+-		return array( 'modules' => array() );
++		return array('modules'=>array());
+ 	}
+ 
+ 	/**

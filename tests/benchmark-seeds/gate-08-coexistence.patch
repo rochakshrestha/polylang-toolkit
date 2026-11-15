@@ -1,0 +1,17 @@
+Gate: 8
+Expect: test_pro_active_still_boots
+Why: Dependency::evaluate() ignores Polylang Pro, so overlapping modules would stay on.
+
+diff --git a/src/Dependency.php b/src/Dependency.php
+index ea1f990..e892f06 100644
+--- a/src/Dependency.php
++++ b/src/Dependency.php
+@@ -40,7 +40,7 @@ final class Dependency {
+ 			return self::TOO_OLD;
+ 		}
+ 
+-		return $pro ? self::PRO_ACTIVE : self::OK;
++		return self::OK;
+ 	}
+ 
+ 	/**

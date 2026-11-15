@@ -1,0 +1,16 @@
+Gate: 11
+Expect: test_boot_with_modules_off_is_cheap_and_stores_little
+Why: Booting writes a 20 KB autoloaded tkpll_ option.
+
+diff --git a/src/Plugin.php b/src/Plugin.php
+index cfb9c35..5593c78 100644
+--- a/src/Plugin.php
++++ b/src/Plugin.php
+@@ -81,6 +81,7 @@ final class Plugin {
+ 			return;
+ 		}
+ 
++		update_option( 'tkpll_selftest_blob', str_repeat( 'x', 20000 ) );
+ 		$settings = Options::get();
+ 		$this->registry()->boot( $settings['modules'], $status, $this->adapter );
+ 
