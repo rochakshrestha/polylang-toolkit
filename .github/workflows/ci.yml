@@ -175,8 +175,13 @@ jobs:
           npx wp-env run cli wp plugin is-active toolkit-for-polylang
           npx wp-env run cli wp eval 'echo "ok";'
       - name: No PHP notices from the toolkit in the debug log (other plugins' notices are shown, not failed)
+        # Page requests log to build/wp-debug/debug.log (.wp-env.json), a host file. WP-CLI may still
+        # log to wp-content/debug.log in the container, so both are checked.
         run: |
           npx wp-env run cli bash -c 'touch /var/www/html/wp-content/debug.log; cat /var/www/html/wp-content/debug.log; ! grep -q toolkit-for-polylang /var/www/html/wp-content/debug.log'
+          test -f build/wp-debug/debug.log
+          cat build/wp-debug/debug.log
+          ! grep -q toolkit-for-polylang build/wp-debug/debug.log
 
   # Benchmark gate 13 (i18n). Gate 14 (Plugin Check) runs on the built zip in the package job.
   wp-checks:

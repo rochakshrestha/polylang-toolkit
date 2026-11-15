@@ -8,6 +8,7 @@ on:
     paths:
       - 'bin/**'
       - 'tests/benchmark-seeds/**'
+      - 'tests/e2e/**'
       - '.github/workflows/benchmark-selftest.yml'
       - 'phpcs.xml.dist'
       - 'phpstan.neon'

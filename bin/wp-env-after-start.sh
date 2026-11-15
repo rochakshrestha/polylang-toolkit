@@ -4,6 +4,13 @@
 # creates English/French/Nepali so `pll_init` fires and Polylang's setup wizard stays out of the way.
 set -euo pipefail
 
+# The development site logs PHP notices to build/wp-debug/debug.log (.wp-env.json), inside the mapped
+# plugin folder, so Playwright can read it from the host. Apache runs as www-data, not as you.
+mkdir -p build/wp-debug
+touch build/wp-debug/debug.log
+chmod 0777 build/wp-debug
+chmod 0666 build/wp-debug/debug.log
+
 for env in cli tests-cli; do
 	npx wp-env run "$env" wp plugin activate polylang toolkit-for-polylang
 	npx wp-env run "$env" wp rewrite structure '/%postname%/' --hard
