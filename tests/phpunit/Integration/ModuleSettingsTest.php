@@ -107,7 +107,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-11
-	 * @group pending
 	 */
 	public function test_modules_tab_comes_first_then_one_tab_per_settings_module(): void {
 		$this->add_standard_modules();
@@ -130,7 +129,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-11
-	 * @group pending
 	 */
 	public function test_a_module_tab_shows_its_fields_with_stored_values(): void {
 		$this->add_standard_modules();
@@ -158,7 +156,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-11
-	 * @group pending
 	 */
 	public function test_tab_of_a_switched_off_module_opens_and_says_so(): void {
 		$this->add_standard_modules();
@@ -173,7 +170,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-11
-	 * @group pending
 	 */
 	public function test_tab_of_a_module_held_back_by_pro_opens_and_says_so(): void {
 		$this->add_modules( new FakeSettingsModule( 'alpha', true ), new FakeSettingsModule( 'beta' ) );
@@ -217,7 +213,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-11
-	 * @group pending
 	 * @group security
 	 * @dataProvider invalid_tabs
 	 *
@@ -238,7 +233,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-11 CORE-12
-	 * @group pending
 	 * @group security
 	 */
 	public function test_tabs_post_to_the_settings_api_and_stay_admin_only(): void {
@@ -272,7 +266,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-12
-	 * @group pending
 	 * @group security
 	 */
 	public function test_saving_a_module_tab_stores_its_sanitized_settings_and_keeps_the_rest(): void {
@@ -328,7 +321,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 	 * (update_option(), then add_option() with the first result). The save must survive that.
 	 *
 	 * @spec CORE-12
-	 * @group pending
 	 * @group security
 	 */
 	public function test_first_save_on_a_fresh_site_keeps_the_module_settings(): void {
@@ -353,7 +345,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-12
-	 * @group pending
 	 * @group security
 	 */
 	public function test_saving_the_modules_tab_keeps_every_module_setting(): void {
@@ -394,7 +385,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-12
-	 * @group pending
 	 */
 	public function test_module_settings_puts_stored_values_over_the_defaults(): void {
 		$alpha = new FakeSettingsModule( 'alpha' );
@@ -420,7 +410,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 
 	/**
 	 * @spec CORE-12
-	 * @group pending
 	 */
 	public function test_module_settings_falls_back_to_defaults_when_the_option_is_corrupted(): void {
 		$alpha = new FakeSettingsModule( 'alpha' );
@@ -435,7 +424,6 @@ class ModuleSettingsTest extends WP_UnitTestCase {
 	 * Edge case: a module cannot take the id that holds the switches.
 	 *
 	 * @spec CORE-12
-	 * @group pending
 	 */
 	public function test_a_module_with_the_id_modules_is_rejected(): void {
 		$this->add_modules( new FakeSettingsModule( 'modules' ), new FakeSettingsModule( 'alpha' ) );

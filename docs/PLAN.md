@@ -71,7 +71,7 @@ AGENTS.md, CLAUDE.md→AGENTS.md    agent rules, commands, definition of done
 - [x] Red-first CI job: every new pending PHPUnit test must fail against the base branch (`bin/check-red-first.mjs`). Pending Playwright tests are listed, not yet run.
 - [x] `bin/benchmark-selftest`: seeded bad patches (`tests/benchmark-seeds/`), each must fail its declared gate for the reason in its `Expect:` line; CI workflow `benchmark-selftest.yml`. Gate 7 has no seed until its first `@group seo` test exists.
 - [x] Playwright fixture failing on console errors and new `debug.log` lines (`tests/e2e/fixtures.ts`; the dev site logs to `build/wp-debug/debug.log`); `classic` project (Classic Editor + Twenty Twenty-One) after the `block` one. Seeds `gate-06-php-notice` and `gate-06-console-error` prove the fixture catches both.
-- [ ] Module settings contract (`HasSettings`, one settings tab per module), as CORE-11/12.
+- [x] Module settings contract (`HasSettings`, one settings tab per module), as CORE-11/12 in `docs/specs/module-settings.md`.
 - [ ] Task queue (`docs/TASKS.md`), decision log (`docs/decisions/`), role separation in AGENTS.md.
 - [ ] SLUG, SYNC, MEDIA and COMPAT specs rewritten to the template.
 - [ ] Coverage baseline vs `main`; multisite PHPUnit leg; weekly run against Polylang latest.

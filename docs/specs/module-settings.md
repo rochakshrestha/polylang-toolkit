@@ -1,6 +1,6 @@
 # Module settings (CORE, part 2)
 
-Status: approved
+Status: implemented
 
 Owner approval: 2026-11-15. The owner also approved these changes made while writing the tests (2026-11-15):
 - `Options::module_settings()` takes the module, not its id, and `HasSettings` extends `ModuleInterface` (the registry is built once per request, so an id lookup would depend on the shared plugin instance).

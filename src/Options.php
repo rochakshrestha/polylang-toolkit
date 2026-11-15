@@ -7,12 +7,14 @@
 
 namespace ToolkitForPolylang;
 
+use ToolkitForPolylang\Modules\HasSettings;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Settings shape: `[ 'modules' => [ '<module id>' => bool ] ]`.
+ * Settings shape: `[ 'modules' => [ '<module id>' => bool ], '<module id>' => [ ... ] ]`.
  *
- * Modules add their own keys under `[ '<module id>' => [ ... ] ]` in later milestones.
+ * A module that implements HasSettings stores its own settings under its id (module_settings()).
  * Secrets (API keys) never go in this option; they belong in `tkpll_secrets` (not autoloaded).
  *
  * @phpstan-type SettingsShape array{modules: array<string, bool>}
@@ -50,6 +52,36 @@ final class Options {
 		}
 
 		return array( 'modules' => $modules );
+	}
+
+	/**
+	 * A module's settings: its defaults, with the stored value put over each default key.
+	 * Stored keys the defaults do not have are ignored; a corrupted option gives the defaults.
+	 *
+	 * @param HasSettings $module Module.
+	 * @return array<string, mixed>
+	 */
+	public static function module_settings( HasSettings $module ): array {
+		$settings = $module->default_settings();
+		$stored   = self::raw();
+		$mine     = isset( $stored[ $module->id() ] ) && is_array( $stored[ $module->id() ] ) ? $stored[ $module->id() ] : array();
+
+		foreach ( array_keys( $settings ) as $key ) {
+			if ( array_key_exists( $key, $mine ) ) {
+				$settings[ $key ] = $mine[ $key ];
+			}
+		}
+		return $settings;
+	}
+
+	/**
+	 * The stored option as an array (empty when missing or corrupted), every key kept.
+	 *
+	 * @return array<mixed>
+	 */
+	public static function raw(): array {
+		$stored = get_option( self::OPTION_NAME, array() );
+		return is_array( $stored ) ? $stored : array();
 	}
 
 	/**
