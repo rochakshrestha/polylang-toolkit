@@ -3,7 +3,9 @@
 ## Context
 Free Polylang leaves painful gaps (translated slugs, content duplication, sync, media) that push small businesses toward Pro (€99+/yr). We are building a **free, GPL companion plugin** that makes free Polylang more complete — "Essential extras for free Polylang" — while staying respectful of WP Syntex: no Pro code, no "unlock Pro" language, clear non-affiliation, links to official Polylang Pro where relevant. It must also coexist with AI translation add-ons (AutoPoly, EPICWP AI, PolyTranslate AI). It is built mostly by other AI agents, so the repo holds specs, rules and an automated benchmark that tells an agent whether its work is correct.
 
-`/workspace/polygon-toolkit` is empty and not a git repo; everything below is new. This plan follows the product brief; where it differs from earlier answers, the brief wins (see "Changes from the earlier draft").
+This plan follows the product brief; where it differs from earlier answers, the brief wins (see "Changes from the earlier draft"). It records decisions; `AGENTS.md` is the how.
+
+**Status:** M0 (foundation) is done and CI is green. M0.5 (hardening the benchmark and the specs, below) is in progress. No module is built yet.
 
 ### Decisions
 - **Name:** display "Toolkit for Polylang", slug `toolkit-for-polylang`. WordPress.org does not accept plugin names/slugs that *start* with another product's trademark, so "Polylang Toolkit" would be renamed in review; the "… for Polylang" form is accepted and still credits Polylang.
@@ -17,7 +19,7 @@ Free Polylang leaves painful gaps (translated slugs, content duplication, sync, 
 - **Media handling** added to Phase 1.
 
 ## Ground rules (go in AGENTS.md, enforced in review)
-1. **Clean-room.** Never read, copy or port Polylang Pro code. Use only free Polylang's public API (`pll_*` in `include/api.php`, `pll_init`, `pll_language_defined`, `pll_rewrite_rules`, `PLL()->model`, `PLL()->links_model`). Other hooks (e.g. `pll_copy_post_metas`, `pll_copy_taxonomies`, `pll_translate_post_meta`, `pll_rel_hreflang_attributes`) are **"verify in inventory"** until `docs/polylang-api.md` confirms them. Any internal Polylang class goes through `src/Polylang/Adapter.php` only.
+1. **Clean-room.** Never read, copy or port Polylang Pro code. Use only free Polylang's public API (`pll_*` in `src/api.php`, `pll_init`, `pll_language_defined`, `pll_rewrite_rules`, `PLL()->model`, `PLL()->links_model`). Other hooks (e.g. `pll_copy_post_metas`, `pll_copy_taxonomies`, `pll_translate_post_meta`, `pll_rel_hreflang_attributes`) are **"verify in inventory"** until `docs/polylang-api.md` confirms them. Any internal Polylang class goes through `src/Polylang/Adapter.php` only.
 2. **Extend, don't duplicate.** Free Polylang already syncs taxonomies, custom fields, featured image, page template, menu order, parent, date; supports per-language media; prints hreflang. Every module spec opens with **"Delta over free Polylang:"** naming exactly what it adds and which Polylang hook it extends. Never re-copy what Polylang's sync already copies; never print a second hreflang set.
 3. **Never break the site.** Polylang missing/too old → admin notice, nothing loads, no fatal. `POLYLANG_PRO` defined → overlapping modules switch off with a notice pointing to Pro's own feature.
 4. **Respectful wording.** "Not affiliated with WP Syntex / Polylang." Never "Pro features for free". Settings page and readme link to official Polylang docs and Pro.
@@ -55,30 +57,46 @@ AGENTS.md, CLAUDE.md→AGENTS.md    agent rules, commands, definition of done
 **Out of scope:** DeepL integration, WooCommerce suite, anything mirroring Pro's proprietary logic.
 
 ### Milestones (each task = one PR)
-- **M0 Foundation:** `git init` + GitHub repo; **free-Polylang capability inventory** (grep pinned Polylang `include/api.php`, `modules/sync/`, `integrations/`, `frontend/`, `modules/` → `docs/polylang-api.md`); scaffold, tooling, wp-env, CI, AGENTS.md, spec drafts, settings page, module registry, dependency/Pro detection, uninstall.
-- **M1 DUP → M2 SLUG → M3 SYNC → M4 MEDIA → M5 COMPAT pass.**
-- **M6 Release 1.0:** readme with FAQ + non-affiliation disclaimer, screenshots, `.pot`, wp.org submission.
+- **M0 Foundation (done):** free-Polylang capability inventory (`docs/polylang-api.md`), scaffold, tooling, wp-env, CI, AGENTS.md, spec drafts, settings page, module registry, dependency/Pro detection, uninstall.
+- **M0.5 Hardening (in progress):** see the checklist below.
+- **M1 DUP → M2a SLUG base slugs → M2b SLUG shared slugs → M3 MEDIA → M4 SYNC → M5 COMPAT pass.** MEDIA comes before SYNC: it is simpler, and DUP's media replacement is only useful once media translations exist. Translatable archive/author/search/feed bases move to Phase 2.
+- **Releases:** tag `0.1.0` on GitHub after M1 so test users have something to install. Submit to WordPress.org after M2a, not at 1.0: review takes weeks and the name is the known risk.
+- **M6 Release 1.0:** readme with FAQ + non-affiliation disclaimer, screenshots, `.pot`.
 - In parallel (you, not agents): validate Phase 1 with 5–10 free-Polylang users before M6.
 
+### M0.5 checklist
+- [x] Gate tags: a criterion tagged `[seo]`, `[coexistence]`, `[performance]` or `[security]` needs a test in that group (gate 5); an empty group gate reports N/A instead of PASS.
+- [x] Tests for the spec checker itself (`npm run test:tools`).
+- [x] Spec template (`docs/specs/_template.md`); DUP spec rewritten to it and approved by the owner (2026-11-11).
+- [ ] Red-first CI job: every new pending test must fail against `main`.
+- [ ] `bin/benchmark-selftest`: seeded bad patches, each must fail its declared gate.
+- [ ] Playwright fixture failing on console errors and new `debug.log` lines; `classic` project (Classic Editor + classic theme).
+- [ ] Module settings contract (`HasSettings`, one settings tab per module), as CORE-11/12.
+- [ ] Task queue (`docs/TASKS.md`), decision log (`docs/decisions/`), role separation in AGENTS.md.
+- [ ] SLUG, SYNC, MEDIA and COMPAT specs rewritten to the template.
+- [ ] Coverage baseline vs `main`; multisite PHPUnit leg; weekly run against Polylang latest.
+
 ## How agents work
-1. **Spec first.** `docs/specs/<module>.md`: "Delta over free Polylang", then numbered acceptance criteria (`SLUG-03 /fr/produits/chaise/ returns the French product; /fr/products/chaise/ 301s to it`). You approve before code.
-2. **Tests second, own PR.** Failing tests tagged with the ID (`@spec SLUG-03` in PHPUnit, `test('SLUG-03 …')` in Playwright).
-3. **Code third.** Separate PR makes them pass; may not edit specs or existing tests. If one looks wrong, stop and say so in the PR.
+1. **Spec first.** `docs/specs/<module>.md`, written from `docs/specs/_template.md`: "Delta over free Polylang", hooks used, settings, data stored, then numbered Given/When/Then criteria with gate tags (`SLUG-03 [seo] …`), fixtures, edge cases and non-goals. You approve before code.
+2. **Tests second, own PR.** Tests tagged with the ID (`@spec SLUG-03` in PHPUnit, `test('SLUG-03 …')` in Playwright) and marked pending so CI stays green.
+3. **Code third.** Separate PR removes the pending markers and makes them pass; it may not edit specs or tests otherwise. If one looks wrong, stop and say so in the PR.
 4. **Protected paths** (CODEOWNERS = you): `docs/specs/`, `tests/`, `phpstan.neon`, `phpcs.xml.dist`, `.github/`, `bin/`. CI fails if a PR changes protected paths and `src/` together unless labelled `spec-change`. Exemption: the M0 bootstrap PR.
 5. PR description lists spec IDs covered and pastes the `bin/benchmark` summary.
 
 ## The benchmark (`bin/benchmark` = definition of done)
+Gates 7, 8, 11 and 12 are PHPUnit groups. A group with no test reports **N/A**, never PASS, and gate 5 forces every gate-tagged criterion to have a test in its group.
+
 | # | Gate | Tool | Pass bar |
 |---|---|---|---|
 | 1 | Coding standards | PHPCS + WPCS 3 + PHPCompatibilityWP (8.1-) | 0 errors/warnings |
 | 2 | Static analysis | PHPStan + phpstan-wordpress + Polylang/Yoast stubs (hand-written minimal stubs in `tests/stubs/` allowed, e.g. Rank Math) | level 8, no baseline growth |
 | 3 | Integration tests | PHPUnit in wp-env with real free Polylang (+ Yoast / Rank Math where needed) | 100% pass |
 | 4 | Coverage | PHPUnit on `src/` | ≥ 80% lines (enforced from M0); "never drops vs `main`" enforced from M1 via `check-coverage.mjs --baseline` |
-| 5 | Spec traceability | `bin/check-spec-coverage` | every `XXX-NN` has ≥1 test; no test cites a missing ID |
+| 5 | Spec traceability | `bin/check-spec-coverage.mjs` | every `XXX-NN` has ≥1 test; no test cites a missing ID; every gate-tagged criterion has a test in that gate's group |
 | 6 | End-to-end | Playwright on wp-env: block theme + classic theme, block + classic editor | 100% pass; no PHP notices, no JS console errors |
 | 7 | URL/SEO output | PHPUnit/Playwright | every translated URL resolves (200), old URL 301s; hreflang reciprocal, absolute, unique, one set per page; canonical self-references; sitemaps valid XML with translated URLs |
 | 8 | Coexistence | PHPUnit | with Polylang sync options on: no duplicate meta; `POLYLANG_PRO` defined → overlapping modules off; Polylang inactive → no fatal (M0); no duplicate meta and "all modules off → output identical to no plugin" enforced from M1, when the first module ships |
-| 9 | AI add-on compat | Playwright smoke with each listed AI add-on installed (free versions) | activate together, duplicate + their translate flow works, no errors |
+| 9 | AI add-on compat | CI job per listed AI add-on (free versions) + PHPUnit hook contract | activates next to the toolkit with no PHP notice from us; `tkpll_after_duplicate` fires with the documented arguments. Their own translate flows need paid API keys and are not run. |
 | 10 | Compatibility matrix | GitHub Actions | PHP 8.1/8.3/8.4 × WP 6.8/latest/trunk × Polylang min/latest |
 | 11 | Performance | PHPUnit | front page adds ≤ 2 DB queries; no autoloaded option > 10 KB |
 | 12 | Security | PHPCS security sniffs + tests | nonce + capability on every write; output escaped; input sanitized |
@@ -86,11 +104,8 @@ AGENTS.md, CLAUDE.md→AGENTS.md    agent rules, commands, definition of done
 | 14 | Plugin Check | `wp plugin check` | 0 errors, 0 warnings |
 | 15 | Packaging | `release.yml` dry run | zip installs on fresh site; uninstall leaves no `tkpll_` rows |
 
-## Files the first agent creates (M0)
-`AGENTS.md`, `CLAUDE.md`, `composer.json`, `package.json`, `.wp-env.json`, `phpcs.xml.dist`, `phpstan.neon`, `phpunit.xml.dist`, `playwright.config.ts`, `bin/benchmark`, `bin/check-spec-coverage`, `.github/workflows/{ci,release}.yml`, `.github/CODEOWNERS`, `.github/pull_request_template.md`, `docs/polylang-api.md`, `docs/specs/{foundation,dup,slug,sync,media,compat}.md` (drafts for your approval), `docs/ROADMAP.md`, `readme.txt` (with non-affiliation disclaimer), `README.md`, `LICENSE`, and the `src/` skeleton.
-
 ## Verification
 - `npx wp-env start && bin/benchmark` passes on the M0 skeleton (all modules off) before feature work.
-- Seed check: break one spec'd behaviour on a branch and confirm the benchmark fails on the right gate.
+- Seed check: `bin/benchmark-selftest` (M0.5) applies known-bad patches and confirms each fails its declared gate.
 - Per milestone manual smoke on wp-env: Polylang + toolkit, EN/FR/NE, run the module's flow in block and classic editors; check URLs, hreflang and sitemaps with Yoast, then Rank Math.
 - Before 1.0: release zip on clean WP 6.8/PHP 8.1 and latest WP/PHP 8.4; Plugin Check clean; feedback from 5–10 real users addressed.

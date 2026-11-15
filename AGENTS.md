@@ -12,9 +12,13 @@ Free GPL companion plugin that fills gaps in **free** Polylang. Not affiliated w
 7. Writes need a nonce and a capability check; input sanitized, output escaped.
 
 ## Workflow: spec, tests, code (three PRs)
-1. **Spec.** `docs/specs/<module>.md` with `Status: draft|approved|implemented` on its own line and criteria written as `- **DUP-01** …`. The owner approves it by merging a PR that sets `Status: approved`.
+1. **Spec.** `docs/specs/<module>.md`, copied from `docs/specs/_template.md`, with `Status: draft|approved|implemented` on its own line and criteria written as `- **DUP-01** [security] Given … when … then …`. The owner approves the text first (an `Owner approval:` line in the spec). The `Status: approved` line itself lands in the tests PR, because gate 5 requires every ID of an approved spec to be cited.
 2. **Tests (PR stays green).** Write tests for every criterion, marked **pending** so CI does not run them yet: `@spec DUP-01` plus `@group pending` in the PHPUnit docblock, and `test.fixme( 'DUP-01 …' )` in Playwright. Gate 5 requires every ID of an `approved` spec to be cited, and pending citations count.
 3. **Code.** Implement, then remove the pending markers (delete the `@group pending` line, turn `test.fixme(` into `test(`), set the spec to `Status: implemented`, and make everything pass. Removing pending markers is the **only** test change a code PR may make; the protected-path check allows exactly that. For an `implemented` spec, gate 5 requires a non-pending test for every ID and rejects any pending one. If a test or criterion looks wrong, stop and say so in the PR.
+
+**Gate tags.** `[seo]`, `[coexistence]`, `[performance]` and `[security]` after a criterion's ID mean a test citing that ID must be in that group: `@group security` in the same PHPUnit docblock, or `@security` in the Playwright title. Gate 5 fails otherwise.
+
+**Fixtures.** When a spec has a Fixtures table, the tests PR creates each listed `tests/fixtures/<module>/<case>.input.html` and `.expected.html` and one data-provider test runs them all.
 
 Citations count only in a test's own docblock (PHPUnit) or test title (Playwright); comments elsewhere do not. `test.skip(` counts as pending, never as coverage. PHPUnit fails on skipped or incomplete tests.
 
@@ -32,6 +36,7 @@ Protected paths (CODEOWNERS): `docs/specs/`, `docs/polylang-api.md`, `tests/`, `
 | PHPUnit | `npm run test:php` |
 | E2E | `npm run test:e2e` |
 | Spec traceability | `npm run check:specs` |
+| Tests of the benchmark tools | `npm run test:tools` |
 
 **Tests and languages.** `tests/phpunit/bootstrap.php` defines `PLL_ADMIN` so Polylang builds its admin context (otherwise a PHPUnit run gets no `PLL()`, no `pll_*` API and no `pll_init`). The WordPress test library reinstalls the test database, so no Polylang languages exist in PHPUnit. Create the languages a test needs in `set_up()` (`PLL()->model->add_language()`); the dev environment from `bin/wp-env-after-start.sh` has en/fr/ne for Playwright.
 

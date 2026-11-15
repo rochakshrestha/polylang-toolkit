@@ -7,8 +7,8 @@
 #   bin/benchmark --quick    static gates only (standards, static analysis, spec traceability, packaging)
 #   bin/benchmark --no-e2e   skip Playwright
 #
-# Gates 7 (URL/SEO), 8 (coexistence), 11 (performance) are PHPUnit/Playwright groups that run
-# inside gates 3 and 6 and are also reported separately. Gates 9 (AI add-ons) and 10 (version
+# Gates 7 (URL/SEO), 8 (coexistence), 11 (performance), 12 (security) are PHPUnit groups that run
+# inside gate 3 and are also reported separately (N/A while a group has no test). Gates 9 (AI add-ons) and 10 (version
 # matrix) run in CI only. A summary is written to build/benchmark-summary.md: paste it in the PR.
 set -uo pipefail
 
@@ -45,6 +45,24 @@ gate() { # number, name, command...
 	fi
 }
 
+# A PHPUnit group gate. An empty group is reported as N/A, never PASS: a gate must not look
+# green with nothing in it. Gate 5 separately requires every gate-tagged criterion of an
+# approved or implemented spec to have a test in its group.
+group_gate() { # number, name, group
+	local num=$1 name=$2 group=$3
+	printf '\n-- Gate %s: %s\n' "$num" "$name"
+	local log="build/gate-$num.log"
+	if npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" vendor/bin/phpunit --no-coverage --group "$group" 2>&1 | tee "$log"; then
+		if grep -q 'No tests executed' "$log"; then
+			record "$num" "$name" N/A "no test in @group $group yet"
+		else
+			record "$num" "$name" PASS ""
+		fi
+	else
+		record "$num" "$name" FAIL "see build/gate-$num.log"
+	fi
+}
+
 # Runs PHP tooling on the host when PHP exists, otherwise inside the wp-env cli container.
 php_tool() {
 	if command -v php >/dev/null 2>&1; then
@@ -75,10 +93,10 @@ elif ! have_env; then
 else
 	gate 3 "Integration tests (+coverage)" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" env XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-clover build/coverage/clover.xml
 	gate 4 "Coverage >= 80%" node bin/check-coverage.mjs build/coverage/clover.xml
-	gate 7 "URL/SEO output" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" vendor/bin/phpunit --group seo
-	gate 8 "Coexistence" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" vendor/bin/phpunit --group coexistence
-	gate 11 "Performance" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" vendor/bin/phpunit --group performance
-	gate 12 "Security" npx wp-env run tests-cli --env-cwd="$PLUGIN_CWD" vendor/bin/phpunit --group security
+	group_gate 7 "URL/SEO output" seo
+	group_gate 8 "Coexistence" coexistence
+	group_gate 11 "Performance" performance
+	group_gate 12 "Security" security
 	gate 13 "i18n (make-pot)" bash -c "npx wp-env run cli --env-cwd=$PLUGIN_CWD wp i18n make-pot . build/toolkit-for-polylang.pot --exclude=vendor,node_modules,tests,build,dist 2>&1 | tee build/make-pot.log; ! grep -qi 'warning' build/make-pot.log"
 	gate 14 "Plugin Check + package smoke (built zip)" bash bin/package-smoke.sh
 	if [[ $E2E -eq 1 ]]; then

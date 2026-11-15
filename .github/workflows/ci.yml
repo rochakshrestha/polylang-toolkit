@@ -43,6 +43,7 @@ jobs:
       - run: vendor/bin/phpcs
       - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
       - run: node bin/check-spec-coverage.mjs
+      - run: node --test tests/tools/*.test.mjs
       - run: bash bin/build-zip.sh
 
   phpunit:
