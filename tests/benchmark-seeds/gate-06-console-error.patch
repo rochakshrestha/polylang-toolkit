@@ -5,8 +5,8 @@ Why: The settings page logs a browser console error; the e2e fixture must catch 
 diff --git a/src/Admin/Settings.php b/src/Admin/Settings.php
 --- a/src/Admin/Settings.php
 +++ b/src/Admin/Settings.php
-@@ -112,3 +112,4 @@ final class Settings {
- 		}
+@@ -146,3 +146,4 @@ final class Settings {
 
 +		echo '<script>console.error( "tkpll selftest console" );</script>';
- 		$settings = Options::get();
+ 		$tab = $this->current_tab();
+ 		?>
