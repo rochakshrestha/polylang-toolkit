@@ -113,7 +113,7 @@ else
 	want 8 && group_gate 8 "Coexistence" coexistence
 	want 11 && group_gate 11 "Performance" performance
 	want 12 && group_gate 12 "Security" security
-	want 13 && gate 13 "i18n (make-pot)" bash -c "npx wp-env run cli --env-cwd=$PLUGIN_CWD wp i18n make-pot . build/toolkit-for-polylang.pot --exclude=vendor,node_modules,tests,build,dist 2>&1 | tee build/make-pot.log; ! grep -qi 'warning' build/make-pot.log"
+	want 13 && gate 13 "i18n (make-pot)" bash bin/check-i18n.sh
 	want 14 && gate 14 "Plugin Check + package smoke (built zip)" bash bin/package-smoke.sh
 	if ! want 6; then
 		:
